@@ -2,7 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { z } from "zod";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy init — Resend wird erst beim ersten Request instanziiert, nicht beim Build
+function getResend() {
+  const key = process.env.RESEND_API_KEY;
+  if (!key || key === "re_placeholder") {
+    throw new Error("RESEND_API_KEY nicht konfiguriert");
+  }
+  return new Resend(key);
+}
 
 const contactSchema = z.object({
   name:    z.string().min(2).max(100),
@@ -33,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     const { name, email, phone, subject, message } = parsed.data;
 
-    await resend.emails.send({
+    await getResend().emails.send({
       from: process.env.CONTACT_EMAIL_FROM ?? "noreply@example.com",
       to:   process.env.CONTACT_EMAIL_TO   ?? "kontakt@example.com",
       replyTo: email,
@@ -56,7 +63,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Bestätigungs-E-Mail an Absender
-    await resend.emails.send({
+    await getResend().emails.send({
       from:    process.env.CONTACT_EMAIL_FROM ?? "noreply@example.com",
       to:      email,
       subject: "Ihre Anfrage ist eingegangen",
